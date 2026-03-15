@@ -2,8 +2,9 @@
 
 > 從零開始在 AWS 上部署 ZeroClaw AI Assistant，串接 Telegram Bot 與 LLM API。
 
-> **安全防護**：部署完成後，強烈建議參考 [OpenClaw 安全實踐指南（繁體中文）](security-practice-guide/) 為你的 Agent 建立三層防禦矩陣。
-> 原作來自 [SlowMist 慢霧安全團隊](https://github.com/slowmist/openclaw-security-practice-guide)。
+> **安全防護**：部署完成後，強烈建議參考 [OpenClaw 安全實踐指南（繁體中文）](security-practice-guide/) 為你的 Agent 建立三層防禦矩陣。原作來自 [SlowMist 慢霧安全團隊](https://github.com/slowmist/openclaw-security-practice-guide)。
+>
+> **English version**: [SETUP_GUIDE_en.md](SETUP_GUIDE_en.md)
 
 ---
 
