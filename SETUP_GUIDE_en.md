@@ -6,10 +6,17 @@
 >
 > **繁體中文版**: [SETUP_GUIDE_zh-TW.md](SETUP_GUIDE_zh-TW.md)
 
+> **Read these four rules first**:
+> 1. **Do not place on-chain private keys or mnemonic phrases on this host.** The agent should only prepare unsigned transaction data; actual signing must happen in an independent wallet.
+> 2. **Treat API keys, bot tokens, `config.toml`, `.env`, and `*.pem` files as secrets.**
+> 3. **Do not store secrets in a git repo, `~/.bashrc`, or `~/.profile`.**
+> 4. **Tighten permissions before creating secret files** with settings like `umask 077`, directory `700`, and file `600`.
+
 ---
 
 ## Table of Contents
 
+0. [Pre-Deployment Security Assumptions](#0-pre-deployment-security-assumptions)
 1. [AWS Hardware Selection](#1-aws-hardware-selection)
 2. [Launch EC2 Instance](#2-launch-ec2-instance)
 3. [Connect & Base Environment Setup](#3-connect--base-environment-setup)
@@ -26,6 +33,40 @@
 14. [Troubleshooting](#14-troubleshooting)
 
 ---
+
+## 0. Pre-Deployment Security Assumptions
+
+This guide assumes you are running ZeroClaw on a clean EC2 host, but **you are not storing blockchain private keys or mnemonic phrases on this machine**.
+
+### 0.1 — Separate infrastructure keys from signing keys
+
+- **SSH private keys / AWS `.pem` files**: used only to log in to the host and must have restricted permissions.
+- **On-chain private keys / mnemonic phrases**: **must not live on this host** and must never be handled by the agent. Real signing should happen in an external wallet or hardware wallet.
+
+### 0.2 — What counts as a secret
+
+Treat all of the following as secrets:
+
+- LLM API keys
+- Telegram bot token
+- `~/.zeroclaw/config.toml`
+- Any runtime `.env` file used later in this guide
+- `~/.ssh/id_rsa`
+- `~/your-key.pem`
+
+### 0.3 — Tighten permissions before creating secret files
+
+```bash
+umask 077
+mkdir -p ~/.zeroclaw ~/.ssh
+chmod 700 ~/.zeroclaw ~/.ssh
+```
+
+### 0.4 — Keep secrets out of git repos and shell profiles
+
+- Do not place real API keys, bot tokens, `.env` files, or `config.toml` inside a git repository.
+- Do not store long-lived secrets in `~/.bashrc` or `~/.profile`.
+- For production, prefer a dedicated runtime env file, systemd `EnvironmentFile`, or AWS Secrets Manager / SSM Parameter Store.
 
 ## 1. AWS Hardware Selection
 
@@ -173,6 +214,8 @@ zeroclaw doctor
 
 ZeroClaw supports 40+ LLM providers. Common options below:
 
+> **Security note**: the `zeroclaw onboard --api-key ...` commands below are acceptable for temporary testing, but for long-running deployments prefer a dedicated runtime env file instead of storing secrets in shell profiles or repos.
+
 ### Option 1: OpenRouter (Recommended — multi-model access)
 
 1. Sign up at [openrouter.ai](https://openrouter.ai/)
@@ -180,7 +223,7 @@ ZeroClaw supports 40+ LLM providers. Common options below:
 3. Configure ZeroClaw:
 
 ```bash
-zeroclaw onboard --api-key sk-or-v1-xxxx --provider openrouter --model "openrouter/auto"
+zeroclaw onboard --api-key <YOUR_OPENROUTER_API_KEY> --provider openrouter --model "openrouter/auto"
 ```
 
 ### Option 2: Anthropic (Claude series)
@@ -189,7 +232,7 @@ zeroclaw onboard --api-key sk-or-v1-xxxx --provider openrouter --model "openrout
 2. Configure:
 
 ```bash
-zeroclaw onboard --api-key sk-ant-xxxx --provider anthropic --model "anthropic/claude-sonnet-4-6"
+zeroclaw onboard --api-key <YOUR_ANTHROPIC_API_KEY> --provider anthropic --model "anthropic/claude-sonnet-4-6"
 ```
 
 ### Option 3: OpenAI
@@ -198,7 +241,7 @@ zeroclaw onboard --api-key sk-ant-xxxx --provider anthropic --model "anthropic/c
 2. Configure:
 
 ```bash
-zeroclaw onboard --api-key sk-xxxx --provider openai
+zeroclaw onboard --api-key <YOUR_OPENAI_API_KEY> --provider openai
 ```
 
 ### Option 4: Use Existing Claude Code / ChatGPT Subscription
@@ -258,9 +301,14 @@ In BotFather:
 ### Step 7.1 — Edit config.toml
 
 ```bash
+umask 077
 mkdir -p ~/.zeroclaw
+chmod 700 ~/.zeroclaw
+install -m 600 /dev/null ~/.zeroclaw/config.toml
 nano ~/.zeroclaw/config.toml
 ```
+
+> **Note**: `config.toml` can contain bot tokens and other sensitive settings. Keep it in a private path under your home directory, not inside a git repo.
 
 ### Step 7.2 — Full Configuration Example
 
@@ -271,7 +319,8 @@ nano ~/.zeroclaw/config.toml
 
 # LLM Provider
 default_provider = "openrouter"          # or "anthropic", "openai", etc.
-api_key = "sk-or-v1-your-api-key-here"   # Your API Key
+# Prefer a dedicated runtime env file for API keys instead of a shell profile
+# api_key = "<YOUR_API_KEY>"
 
 # Model selection (optional, uses provider default if not set)
 # model = "openrouter/auto"
@@ -285,7 +334,7 @@ api_key = "sk-or-v1-your-api-key-here"   # Your API Key
 # Telegram Channel Settings
 # =========================
 [channels_config.telegram]
-bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"   # Token from BotFather
+bot_token = "<YOUR_TELEGRAM_BOT_TOKEN>"  # Token from BotFather
 
 # Users allowed to interact with the bot
 # "*" = everyone (NOT recommended for production)
@@ -307,16 +356,18 @@ interrupt_on_new_message = false
 
 ### Step 7.3 — Environment Variables (Alternative)
 
-If you prefer not to store API keys in config.toml:
+If you prefer not to store API keys in config.toml, you can test with a **current shell session only**:
 
 ```bash
-# Add to ~/.bashrc or ~/.profile
-export OPENROUTER_API_KEY="sk-or-v1-xxxx"
+# Temporary for the current shell session only; do not add to ~/.bashrc or ~/.profile
+export OPENROUTER_API_KEY="<YOUR_OPENROUTER_API_KEY>"
 # or
-export ANTHROPIC_API_KEY="sk-ant-xxxx"
+export ANTHROPIC_API_KEY="<YOUR_ANTHROPIC_API_KEY>"
 # or
-export OPENAI_API_KEY="sk-xxxx"
+export OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
 ```
+
+For long-running deployments, switch to a dedicated runtime env file with systemd `EnvironmentFile`, or use AWS Secrets Manager / SSM Parameter Store.
 
 ---
 

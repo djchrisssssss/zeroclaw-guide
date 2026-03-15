@@ -6,10 +6,17 @@
 >
 > **English version**: [SETUP_GUIDE_en.md](SETUP_GUIDE_en.md)
 
+> **先看這四條規則**：
+> 1. **不要把鏈上私鑰或助記詞放到這台主機。** Agent 只準備未簽名交易資料，實際簽名必須在獨立錢包完成。
+> 2. **把 API Key、Bot Token、`config.toml`、`.env`、`*.pem` 都當成敏感資料。**
+> 3. **不要把 secret 寫進 git repo、`~/.bashrc` 或 `~/.profile`。**
+> 4. **建立敏感檔案前先設最小權限**，例如 `umask 077`、目錄 `700`、檔案 `600`。
+
 ---
 
 ## 目錄
 
+0. [部署前安全前提](#0-部署前安全前提)
 1. [AWS 硬體選擇](#1-aws-硬體選擇)
 2. [啟動 EC2 Instance](#2-啟動-ec2-instance)
 3. [連線與基礎環境設定](#3-連線與基礎環境設定)
@@ -26,6 +33,40 @@
 14. [疑難排解](#14-疑難排解)
 
 ---
+
+## 0. 部署前安全前提
+
+這份教學預設你是用一台乾淨的 EC2 主機跑 ZeroClaw，但**不會**在這台主機上保存鏈上私鑰或助記詞。
+
+### 0.1 — 明確區分兩種金鑰
+
+- **SSH 私鑰 / AWS `.pem`**：只用來登入主機，必須限制權限。
+- **鏈上私鑰 / 助記詞**：**不要放到這台主機**，也不要讓 Agent 接觸。真正簽名請交給獨立錢包或硬體錢包。
+
+### 0.2 — 哪些檔案都算敏感資料
+
+以下內容都應視為 secret：
+
+- LLM API Keys
+- Telegram Bot Token
+- `~/.zeroclaw/config.toml`
+- 之後會用到的 runtime `.env`
+- `~/.ssh/id_rsa`
+- `~/your-key.pem`
+
+### 0.3 — 建立敏感檔案前先收緊權限
+
+```bash
+umask 077
+mkdir -p ~/.zeroclaw ~/.ssh
+chmod 700 ~/.zeroclaw ~/.ssh
+```
+
+### 0.4 — Secret 不要進 repo 或 shell profile
+
+- 不要把真實 API Key、Bot Token、`.env`、`config.toml` 放在 git repo 內。
+- 不要把長期有效的 secret 寫進 `~/.bashrc` 或 `~/.profile`。
+- 生產環境優先使用專用 runtime env 檔、systemd `EnvironmentFile`，或 AWS Secrets Manager / SSM Parameter Store。
 
 ## 1. AWS 硬體選擇
 
@@ -173,6 +214,8 @@ zeroclaw doctor
 
 ZeroClaw 支援 40+ 個 LLM provider。以下列出常見選項：
 
+> **安全建議**：下面的 `zeroclaw onboard --api-key ...` 僅適合臨時測試。長期運行請把 API Key 放進專用 runtime env 檔，避免寫進 shell profile 或 repo。
+
 ### 選項一：OpenRouter（推薦，多模型選擇）
 
 1. 前往 [openrouter.ai](https://openrouter.ai/) 註冊帳號
@@ -180,7 +223,7 @@ ZeroClaw 支援 40+ 個 LLM provider。以下列出常見選項：
 3. 設定 ZeroClaw：
 
 ```bash
-zeroclaw onboard --api-key sk-or-v1-xxxx --provider openrouter --model "openrouter/auto"
+zeroclaw onboard --api-key <YOUR_OPENROUTER_API_KEY> --provider openrouter --model "openrouter/auto"
 ```
 
 ### 選項二：Anthropic（Claude 系列）
@@ -189,7 +232,7 @@ zeroclaw onboard --api-key sk-or-v1-xxxx --provider openrouter --model "openrout
 2. 設定：
 
 ```bash
-zeroclaw onboard --api-key sk-ant-xxxx --provider anthropic --model "anthropic/claude-sonnet-4-6"
+zeroclaw onboard --api-key <YOUR_ANTHROPIC_API_KEY> --provider anthropic --model "anthropic/claude-sonnet-4-6"
 ```
 
 ### 選項三：OpenAI
@@ -198,7 +241,7 @@ zeroclaw onboard --api-key sk-ant-xxxx --provider anthropic --model "anthropic/c
 2. 設定：
 
 ```bash
-zeroclaw onboard --api-key sk-xxxx --provider openai
+zeroclaw onboard --api-key <YOUR_OPENAI_API_KEY> --provider openai
 ```
 
 ### 選項四：使用已有的 Claude Code / ChatGPT 訂閱
@@ -258,9 +301,14 @@ zeroclaw agent -m "Hello, are you working?"
 ### Step 7.1 — 編輯 config.toml
 
 ```bash
+umask 077
 mkdir -p ~/.zeroclaw
+chmod 700 ~/.zeroclaw
+install -m 600 /dev/null ~/.zeroclaw/config.toml
 nano ~/.zeroclaw/config.toml
 ```
+
+> **注意**：`config.toml` 內可能包含 Telegram Bot Token 與其他敏感設定。請將它放在家目錄下的私有路徑，不要放在 git repo 內。
 
 ### Step 7.2 — 完整組態範例
 
@@ -271,7 +319,8 @@ nano ~/.zeroclaw/config.toml
 
 # LLM Provider 設定
 default_provider = "openrouter"          # 或 "anthropic", "openai" 等
-api_key = "sk-or-v1-your-api-key-here"   # 你的 API Key
+# 建議把 API Key 放進專用 runtime env 檔，而不是 shell profile
+# api_key = "<YOUR_API_KEY>"
 
 # 模型選擇（選用，不設定則用 provider 預設）
 # model = "openrouter/auto"
@@ -285,7 +334,7 @@ api_key = "sk-or-v1-your-api-key-here"   # 你的 API Key
 # Telegram Channel 設定
 # =========================
 [channels_config.telegram]
-bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"   # 從 BotFather 取得的 Token
+bot_token = "<YOUR_TELEGRAM_BOT_TOKEN>"  # 從 BotFather 取得的 Token
 
 # 允許與 Bot 互動的用戶
 # "*" = 所有人都可以使用（不建議用於生產環境）
@@ -307,16 +356,18 @@ interrupt_on_new_message = false
 
 ### Step 7.3 — 設定環境變數（替代方案）
 
-如果不想把 API Key 寫在 config.toml 裡，可以用環境變數：
+如果不想把 API Key 寫在 config.toml 裡，可以先在**當前 shell session** 測試：
 
 ```bash
-# 加到 ~/.bashrc 或 ~/.profile
-export OPENROUTER_API_KEY="sk-or-v1-xxxx"
+# 僅供當前 shell session 測試，不要寫進 ~/.bashrc 或 ~/.profile
+export OPENROUTER_API_KEY="<YOUR_OPENROUTER_API_KEY>"
 # 或
-export ANTHROPIC_API_KEY="sk-ant-xxxx"
+export ANTHROPIC_API_KEY="<YOUR_ANTHROPIC_API_KEY>"
 # 或
-export OPENAI_API_KEY="sk-xxxx"
+export OPENAI_API_KEY="<YOUR_OPENAI_API_KEY>"
 ```
+
+長期運行請改用專用 runtime env 檔搭配 systemd `EnvironmentFile`，或 AWS Secrets Manager / SSM Parameter Store。
 
 ---
 
