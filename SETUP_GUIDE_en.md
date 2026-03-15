@@ -112,11 +112,12 @@ Create a new Security Group `zeroclaw-sg`:
 
 | Type | Protocol | Port | Source | Purpose |
 |------|----------|------|--------|---------|
-| SSH | TCP | 22 | My IP | SSH access |
-| Custom TCP | TCP | 42617 | 0.0.0.0/0 | ZeroClaw Gateway (if external webhook needed) |
-| HTTPS | TCP | 443 | 0.0.0.0/0 | Reverse proxy (optional) |
+| SSH | TCP | 22 | My IP | SSH access (required by default) |
 
-> **Note**: Port 42617 is only needed for webhook mode. If using Telegram polling mode, you can skip it.
+Default to **SSH only**. Add other rules only when needed:
+
+- `42617/tcp`: only if you intentionally run webhook mode, ideally behind a reverse proxy or with restricted source ranges.
+- `443/tcp`: only after you have a reverse proxy / TLS setup ready.
 
 ### Step 2.4 — Launch & Record
 
@@ -411,6 +412,7 @@ zeroclaw daemon
 ### Background
 
 ```bash
+install -d -m 700 ~/.zeroclaw/logs
 nohup zeroclaw daemon > ~/.zeroclaw/logs/daemon.stdout.log 2> ~/.zeroclaw/logs/daemon.stderr.log &
 ```
 
@@ -418,7 +420,7 @@ nohup zeroclaw daemon > ~/.zeroclaw/logs/daemon.stdout.log 2> ~/.zeroclaw/logs/d
 
 ## 10. Systemd Auto-Start on Boot
 
-### Method A: Built-in Command (Recommended)
+### Method A: Built-in Command (Quick Validation)
 
 ```bash
 zeroclaw service install
@@ -426,41 +428,26 @@ zeroclaw service start
 zeroclaw service status
 ```
 
-### Method B: Manual Systemd User Service
+### Method B: Hardened Systemd Template (Recommended for Production)
+
+These commands assume you are running them from the root of this repository:
 
 ```bash
-mkdir -p ~/.config/systemd/user/
+install -d -m 700 ~/.config/systemd/user ~/.zeroclaw ~/.zeroclaw/logs
+install -m 600 templates/runtime.env.example ~/.zeroclaw/runtime.env
+install -m 600 templates/zeroclaw.service.example ~/.config/systemd/user/zeroclaw.service
 
-cat > ~/.config/systemd/user/zeroclaw.service << 'EOF'
-[Unit]
-Description=ZeroClaw AI Assistant Daemon
-After=network-online.target
-Wants=network-online.target
+# Fill in your real API key
+nano ~/.zeroclaw/runtime.env
 
-[Service]
-Type=simple
-ExecStart=%h/.cargo/bin/zeroclaw daemon
-Restart=on-failure
-RestartSec=10
-Environment="PATH=%h/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
-
-# If using environment variables for API keys
-# EnvironmentFile=%h/.zeroclaw/.env
-
-# Logging
-StandardOutput=append:%h/.zeroclaw/logs/daemon.stdout.log
-StandardError=append:%h/.zeroclaw/logs/daemon.stderr.log
-
-[Install]
-WantedBy=default.target
-EOF
+# Confirm ExecStart if your zeroclaw binary lives elsewhere
+nano ~/.config/systemd/user/zeroclaw.service
 ```
 
 ```bash
 # Enable and start
 systemctl --user daemon-reload
-systemctl --user enable zeroclaw.service
-systemctl --user start zeroclaw.service
+systemctl --user enable --now zeroclaw.service
 
 # Enable linger so service runs without login
 sudo loginctl enable-linger ubuntu
@@ -468,6 +455,8 @@ sudo loginctl enable-linger ubuntu
 # Check status
 systemctl --user status zeroclaw.service
 ```
+
+`templates/zeroclaw.service.example` already includes safer defaults such as `UMask=0077`, `NoNewPrivileges=yes`, `ProtectSystem=strict`, and `ReadWritePaths=%h/.zeroclaw`.
 
 ### View Logs
 
@@ -492,70 +481,34 @@ newgrp docker
 
 ### Step 11.2 — Create docker-compose.yml
 
-```bash
-mkdir -p ~/zeroclaw-docker && cd ~/zeroclaw-docker
-
-cat > docker-compose.yml << 'EOF'
-services:
-  zeroclaw:
-    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
-    container_name: zeroclaw
-    restart: unless-stopped
-    ports:
-      - "${HOST_PORT:-42617}:${ZEROCLAW_GATEWAY_PORT:-42617}"
-    environment:
-      - API_KEY=${API_KEY}
-      - PROVIDER=${PROVIDER:-openrouter}
-      - ZEROCLAW_MODEL=${ZEROCLAW_MODEL:-}
-      - ZEROCLAW_ALLOW_PUBLIC_BIND=true
-      - ZEROCLAW_GATEWAY_PORT=${ZEROCLAW_GATEWAY_PORT:-42617}
-    volumes:
-      - zeroclaw-data:/zeroclaw-data
-    deploy:
-      resources:
-        limits:
-          cpus: "2"
-          memory: 2G
-        reservations:
-          cpus: "0.5"
-          memory: 512M
-    healthcheck:
-      test: ["CMD", "zeroclaw", "status"]
-      interval: 60s
-      timeout: 10s
-      retries: 3
-      start_period: 10s
-
-volumes:
-  zeroclaw-data:
-EOF
-```
-
-### Step 11.3 — Create .env File
+These commands assume you are running them from the root of this repository:
 
 ```bash
-cat > .env << 'EOF'
-API_KEY=sk-or-v1-your-api-key-here
-PROVIDER=openrouter
-ZEROCLAW_MODEL=openrouter/auto
-HOST_PORT=42617
-EOF
+install -d -m 700 ~/zeroclaw-docker
+cp templates/docker-compose.example.yml ~/zeroclaw-docker/docker-compose.yml
+install -m 600 templates/docker.env.example ~/zeroclaw-docker/docker.env
+install -m 600 templates/config.toml.example ~/zeroclaw-docker/config.toml
 ```
+
+### Step 11.3 — Edit Docker Secret Files
+
+```bash
+nano ~/zeroclaw-docker/docker.env
+nano ~/zeroclaw-docker/config.toml
+```
+
+The default template binds the port to `127.0.0.1:42617`. If you only use Telegram polling, you usually do not need any extra public inbound rule.
 
 ### Step 11.4 — Start
 
 ```bash
+cd ~/zeroclaw-docker
 docker compose up -d
+docker compose ps
 docker compose logs -f
 ```
 
-> **Note**: For Telegram configuration in Docker mode, mount your config.toml into the container:
->
-> ```yaml
-> volumes:
->   - zeroclaw-data:/zeroclaw-data
->   - ./config.toml:/root/.zeroclaw/config.toml:ro
-> ```
+`templates/docker-compose.example.yml` already applies `read_only: true`, `cap_drop: [ALL]`, `no-new-privileges`, and a read-only bind mount for `config.toml`.
 
 ---
 
@@ -572,14 +525,15 @@ allowed_users = ["123456789", "987654321"]   # Only these users can interact
 
 ### 12.2 — Minimize AWS Security Group
 
-- SSH: Restrict to your IP only
-- Don't open port 42617 unless you need webhooks
+- Default to SSH only, restricted to your IP
+- Open `443/tcp` only after your reverse proxy / TLS layer is ready
+- Open `42617/tcp` only when webhook mode truly needs it, and avoid exposing it broadly to the internet
 - Review Security Group rules regularly
 
 ### 12.3 — API Key Security
 
 - Never hardcode API keys in source code
-- Use environment variables or AWS Secrets Manager
+- Prefer a dedicated runtime env file (`600`) or AWS Secrets Manager
 - Rotate API keys periodically
 
 ### 12.4 — System Security
@@ -593,7 +547,8 @@ sudo dpkg-reconfigure -plow unattended-upgrades
 sudo ufw default deny incoming
 sudo ufw default allow outgoing
 sudo ufw allow ssh
-# If gateway needed: sudo ufw allow 42617/tcp
+# If reverse proxy needed: sudo ufw allow 443/tcp
+# If webhook gateway needed: sudo ufw allow 42617/tcp
 sudo ufw enable
 ```
 
@@ -608,11 +563,18 @@ sudo systemctl restart sshd
 
 ### 12.6 — File Permission Best Practices
 
-Use `600` for config files that need read/write and `400` for read-only credentials:
+Use `600` for config files that need read/write, `700` for private directories, and `400` for read-only credentials:
 
 ```bash
+# Private directories → 700
+chmod 700 ~/.zeroclaw
+chmod 700 ~/.ssh
+chmod 700 ~/.config/systemd/user
+
 # Config files (read/write) → 600
 chmod 600 ~/.zeroclaw/config.toml
+chmod 600 ~/.zeroclaw/runtime.env
+chmod 600 ~/zeroclaw-docker/docker.env
 
 # SSH private keys (read-only) → 400
 chmod 400 ~/.ssh/id_rsa
