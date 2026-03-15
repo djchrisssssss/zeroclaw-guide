@@ -1,0 +1,29 @@
+services:
+  zeroclaw:
+    image: ghcr.io/zeroclaw-labs/zeroclaw:latest
+    container_name: zeroclaw
+    restart: unless-stopped
+    ports:
+      # Keep localhost-only unless you intentionally expose webhook mode.
+      - "127.0.0.1:42617:42617"
+    env_file:
+      - ./docker.env
+    volumes:
+      - zeroclaw-data:/zeroclaw-data
+      - ./config.toml:/root/.zeroclaw/config.toml:ro
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=64m
+    healthcheck:
+      test: ["CMD", "zeroclaw", "status"]
+      interval: 60s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+volumes:
+  zeroclaw-data:

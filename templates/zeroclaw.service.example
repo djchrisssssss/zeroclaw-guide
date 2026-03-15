@@ -1,0 +1,31 @@
+[Unit]
+Description=ZeroClaw AI Assistant Daemon
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/env zeroclaw daemon
+WorkingDirectory=%h
+Restart=on-failure
+RestartSec=10
+Environment="PATH=%h/.cargo/bin:/usr/local/bin:/usr/bin:/bin"
+EnvironmentFile=%h/.zeroclaw/runtime.env
+UMask=0077
+NoNewPrivileges=yes
+PrivateTmp=yes
+ProtectSystem=strict
+ProtectHome=read-only
+ReadWritePaths=%h/.zeroclaw
+ProtectControlGroups=yes
+ProtectKernelModules=yes
+ProtectKernelTunables=yes
+LockPersonality=yes
+MemoryDenyWriteExecute=yes
+RestrictSUIDSGID=yes
+RestrictNamespaces=yes
+StandardOutput=append:%h/.zeroclaw/logs/daemon.stdout.log
+StandardError=append:%h/.zeroclaw/logs/daemon.stderr.log
+
+[Install]
+WantedBy=default.target

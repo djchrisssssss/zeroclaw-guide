@@ -1,0 +1,38 @@
+# Secrets and credentials
+.env
+.env.*
+!.env.example
+config.toml
+runtime.env
+docker.env
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.csr
+*.der
+*.jks
+id_rsa
+id_ed25519
+authorized_keys
+mnemonic.txt
+seed.txt
+wallet.txt
+
+# Runtime data and logs
+.zeroclaw/
+logs/
+*.log
+*.pid
+
+# Backups and local overrides
+*.bak
+*.backup
+*.orig
+*.local
+*.secret
+*.secrets
+
+# OS / editor noise
+.DS_Store
