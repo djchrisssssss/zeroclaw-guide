@@ -510,6 +510,10 @@ docker compose logs -f
 
 `templates/docker-compose.example.yml` already applies `read_only: true`, `cap_drop: [ALL]`, `no-new-privileges`, and a read-only bind mount for `config.toml`.
 
+### Step 11.5 — Run the post-deploy verification checklist before sign-off
+
+Before you call the deployment done, work through [VERIFICATION_CHECKLIST_en.md](VERIFICATION_CHECKLIST_en.md) to verify permissions, port exposure, service health, and logs.
+
 ---
 
 ## 12. Security Hardening

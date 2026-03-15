@@ -510,6 +510,10 @@ docker compose logs -f
 
 `templates/docker-compose.example.yml` 已預設使用 `read_only: true`、`cap_drop: [ALL]`、`no-new-privileges` 與唯讀掛載的 `config.toml`。
 
+### Step 11.5 — 上線前先跑部署驗證清單
+
+在宣告部署完成前，先依 [VERIFICATION_CHECKLIST_zh-TW.md](VERIFICATION_CHECKLIST_zh-TW.md) 完成權限、port、服務狀態與 log 的基礎驗收。
+
 ---
 
 ## 12. 安全性強化

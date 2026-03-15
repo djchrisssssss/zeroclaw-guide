@@ -20,20 +20,21 @@ A secure-by-default guide for deploying **ZeroClaw AI Agent** on AWS with Telegr
 | Document | Description |
 |----------|-------------|
 | [SETUP_GUIDE_en.md](SETUP_GUIDE_en.md) | AWS deployment — hardware, installation, Telegram Bot, API, Systemd, Docker |
+| [VERIFICATION_CHECKLIST_en.md](VERIFICATION_CHECKLIST_en.md) | Post-deploy verification — permissions, secret placement, port exposure, service health |
 | [security-practice-guide/](security-practice-guide/) | Agent security — 3-tier defense matrix, nightly audits, disaster recovery, red teaming |
 
 ### Recommended Reading Order
 
 ```text
-Step 0                     Step 1                        Step 2                        Step 3
-┌──────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
-│  Security        │  │  SETUP_GUIDE            │  │  Security Practice      │  │  Validation Guide       │
-│  Assumptions     │  │                         │  │  Guide                  │  │                         │
-│  No private keys │──│  AWS + Install          │──│  Red/Yellow line rules  │──│  19 test cases          │
-│  No secret in git│  │  Telegram setup         │  │  Permission narrowing   │  │  Verify defenses work   │
-│  Least privilege │  │  API config             │  │  13-metric nightly audit│  │                         │
-│                  │  │  Daemon launch          │  │  Git disaster recovery  │  │                         │
-└──────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘
+Step 0                     Step 1                        Step 2                        Step 3                        Step 4
+┌──────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
+│  Security        │  │  SETUP_GUIDE            │  │  Verification           │  │  Security Practice      │  │  Validation Guide       │
+│  Assumptions     │  │                         │  │  Checklist              │  │  Guide                  │  │                         │
+│  No private keys │──│  AWS + Install          │──│  Permissions            │──│  Red/Yellow line rules  │──│  19 test cases          │
+│  No secret in git│  │  Telegram setup         │  │  Port exposure          │  │  Permission narrowing   │  │  Verify defenses work   │
+│  Least privilege │  │  API config             │  │  Service health         │  │  13-metric nightly audit│  │                         │
+│                  │  │  Daemon launch          │  │                         │  │  Git disaster recovery  │  │                         │
+└──────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘
 ```
 
 ### Quick Start
@@ -50,12 +51,17 @@ Step 0                     Step 1                        Step 2                 
 - Telegram Bot creation & binding
 - Systemd auto-start & basic security (firewall, SSH)
 
-**2. Apply Security Hardening** — Read [security-practice-guide/](security-practice-guide/)
+**2. Run the post-deploy verification checklist** — Read [VERIFICATION_CHECKLIST_en.md](VERIFICATION_CHECKLIST_en.md)
+- Confirm secrets are outside git and shell profiles
+- Verify `700/600/400` permissions across directories, configs, and keys
+- Confirm the expected ports, logs, and service/container health
+
+**3. Apply Security Hardening** — Read [security-practice-guide/](security-practice-guide/)
 - **Pre-action**: Behavior blacklists (red/yellow-line commands) + Skill audit
 - **In-action**: Permission narrowing + SHA256 hash baseline + business risk control
 - **Post-action**: Nightly audit covering 13 core metrics + Git disaster recovery
 
-**3. Validate Defenses** — Read [Validation Guide](security-practice-guide/docs/Validation-Guide-en.md)
+**4. Validate Defenses** — Read [Validation Guide](security-practice-guide/docs/Validation-Guide-en.md)
 - Cognitive injection (supply chain poisoning, roleplay jailbreak, obfuscated payloads)
 - Host exploitation (destructive commands, data exfiltration, persistence)
 - Business risk control (high-risk address blocking, key leakage, signature isolation)
@@ -88,20 +94,21 @@ ZeroClaw AI Agent 的 secure-by-default 一站式指南：從 AWS 部署到 Tele
 | 文件 | 說明 |
 |------|------|
 | [SETUP_GUIDE_zh-TW.md](SETUP_GUIDE_zh-TW.md) | AWS 部署教學 — 硬體選擇、安裝、Telegram Bot、API 串接、Systemd、Docker |
+| [VERIFICATION_CHECKLIST_zh-TW.md](VERIFICATION_CHECKLIST_zh-TW.md) | 部署後驗證 — 權限、secret 位置、port 暴露、服務健康 |
 | [security-practice-guide/](security-practice-guide/) | Agent 安全實踐指南 — 三層防禦矩陣、巡檢、災備、攻防演練 |
 
 ### 建議閱讀順序
 
 ```text
-Step 0                     Step 1                        Step 2                        Step 3
-┌──────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
-│  安全前提         │  │  部署教學               │  │  安全實踐指南            │  │  攻防演練手冊            │
-│                  │  │                         │  │                         │  │                         │
-│  不落地私鑰      │──│  AWS + 安裝             │──│  紅線/黃線規則           │──│  19 個測試用例           │
-│  Secret 不進 git │  │  Telegram 串接          │  │  權限收窄               │  │  驗證防禦是否生效        │
-│  最小權限        │  │  API 設定              │  │  每晚巡檢 13 項指標      │  │                         │
-│                  │  │  Daemon 啟動           │  │  Git 災備同步            │  │                         │
-└──────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘
+Step 0                     Step 1                        Step 2                        Step 3                        Step 4
+┌──────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐  ┌─────────────────────────┐
+│  安全前提         │  │  部署教學               │  │  驗證清單               │  │  安全實踐指南            │  │  攻防演練手冊            │
+│                  │  │                         │  │                         │  │                         │  │                         │
+│  不落地私鑰      │──│  AWS + 安裝             │──│  權限與 secret          │──│  紅線/黃線規則           │──│  19 個測試用例           │
+│  Secret 不進 git │  │  Telegram 串接          │  │  Port 與服務狀態        │  │  權限收窄               │  │  驗證防禦是否生效        │
+│  最小權限        │  │  API 設定              │  │                         │  │  每晚巡檢 13 項指標      │  │                         │
+│                  │  │  Daemon 啟動           │  │                         │  │  Git 災備同步            │  │                         │
+└──────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘  └─────────────────────────┘
 ```
 
 ### 快速開始
@@ -118,12 +125,17 @@ Step 0                     Step 1                        Step 2                 
 - Telegram Bot 建立與綁定
 - Systemd 開機自動啟動與安全性基礎設定（防火牆、SSH）
 
-**2. 套用安全防護** — 閱讀 [security-practice-guide/](security-practice-guide/)
+**2. 先做部署後驗證** — 閱讀 [VERIFICATION_CHECKLIST_zh-TW.md](VERIFICATION_CHECKLIST_zh-TW.md)
+- 確認 secret 沒有進 repo 或 shell profile
+- 驗證目錄、設定檔、金鑰的 `700/600/400` 權限
+- 確認 port、日誌、服務／容器狀態符合預期
+
+**3. 套用安全防護** — 閱讀 [security-practice-guide/](security-practice-guide/)
 - **事前**：行為黑名單（紅線/黃線命令）+ Skill 安裝審計
 - **事中**：權限收窄 + SHA256 雜湊基線 + 業務風控前置檢查
 - **事後**：每晚自動巡檢 13 項核心指標 + Git 災備同步
 
-**3. 驗證防禦** — 閱讀 [攻防演練手冊](security-practice-guide/docs/Validation-Guide-zh-TW.md)
+**4. 驗證防禦** — 閱讀 [攻防演練手冊](security-practice-guide/docs/Validation-Guide-zh-TW.md)
 - 認知層注入防禦（供應鏈投毒、角色扮演越獄、編碼混淆）
 - 主機提權與環境破壞（破壞性指令、資料外傳、後門植入）
 - 業務風控（高危地址阻斷、私鑰洩露防護、簽名隔離）
