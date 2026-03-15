@@ -67,10 +67,36 @@
 > 替代方案：**許可權收窄 + 雜湊基線**
 
 #### a) 許可權收窄（限制訪問範圍）
+
+> **⚠️ 600 vs 400 選擇指南：**
+> - `600`（rw-------）= Owner 可讀可寫，其他人無權限
+> - `400`（r--------）= Owner 唯讀，其他人無權限
+>
+> **關鍵原則**：需要被程式寫入的檔案用 `600`；純讀取的憑證/金鑰用 `400`。
+
+| 檔案 | 建議權限 | 原因 |
+|------|---------|------|
+| `$OC/openclaw.json` | `600` | Gateway 啟動時讀取，升級/onboard 時需要寫入 |
+| `$OC/devices/paired.json` | `600` | Gateway runtime 需要頻繁讀寫（心跳、session） |
+| `~/.ssh/id_rsa` / `*.pem` | `400` | SSH 私鑰只需讀取，**SSH 強制要求 400 否則拒絕使用** |
+| `~/.ssh/authorized_keys` | `600` | 需要讀取，偶爾新增公鑰時需要寫入 |
+| `~/.zeroclaw/config.toml` | `600` | Daemon 讀取，手動編輯時需要寫入 |
+| 巡檢腳本 `.sh` | `700` | 需要執行權限；搭配 `chattr +i` 防篡改 |
+
 ```bash
+# 需要讀寫的配置檔案 → 600
 chmod 600 $OC/openclaw.json
 chmod 600 $OC/devices/paired.json
+
+# 純讀取的私鑰/憑證 → 400
+chmod 400 ~/.ssh/id_rsa
+chmod 400 ~/your-key.pem
 ```
+
+> **常見錯誤排查**：
+> - 如果 ZeroClaw 啟動時報 `Permission denied`，請確認檔案 owner 與 daemon 執行的使用者一致：`ls -la $OC/openclaw.json`
+> - 如果用 `sudo` 執行 ZeroClaw 但檔案 owner 是一般使用者，需要 `sudo chown root:root` 或改為不使用 sudo
+> - 如果 SSH 拒絕使用金鑰（`Permissions are too open`），私鑰必須是 `400` 或 `600`，**不能是 644 或 755**
 
 #### b) 配置檔案雜湊基線
 ```bash

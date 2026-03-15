@@ -66,10 +66,36 @@ Every time a new Skill/MCP or third-party tool is installed, you **must** immedi
 > Alternative: **Permission Narrowing + Hash Baseline**
 
 #### a) Permission Narrowing (Restrict Access Scope)
+
+> **⚠️ 600 vs 400 — Which One to Use:**
+> - `600` (rw-------) = Owner can read & write, no access for others
+> - `400` (r--------) = Owner read-only, no access for others
+>
+> **Key Principle**: Use `600` for files that need to be written by programs; use `400` for credentials/keys that are read-only.
+
+| File | Recommended | Reason |
+|------|-------------|--------|
+| `$OC/openclaw.json` | `600` | Gateway reads on startup; upgrades/onboard need write access |
+| `$OC/devices/paired.json` | `600` | Gateway runtime reads/writes frequently (heartbeat, session) |
+| `~/.ssh/id_rsa` / `*.pem` | `400` | SSH private keys are read-only; **SSH enforces 400 or rejects the key** |
+| `~/.ssh/authorized_keys` | `600` | Needs read access; occasional write when adding public keys |
+| `~/.zeroclaw/config.toml` | `600` | Daemon reads it; manual edits need write access |
+| Audit scripts `.sh` | `700` | Needs execute permission; pair with `chattr +i` to prevent tampering |
+
 ```bash
+# Config files that need read/write → 600
 chmod 600 $OC/openclaw.json
 chmod 600 $OC/devices/paired.json
+
+# Read-only private keys/credentials → 400
+chmod 400 ~/.ssh/id_rsa
+chmod 400 ~/your-key.pem
 ```
+
+> **Common Permission Errors & Fixes**:
+> - If ZeroClaw fails to start with `Permission denied`, verify the file owner matches the daemon user: `ls -la $OC/openclaw.json`
+> - If running ZeroClaw with `sudo` but file owner is a regular user, either `sudo chown root:root` or stop using sudo
+> - If SSH rejects your key (`Permissions are too open`), private keys must be `400` or `600` — **never 644 or 755**
 
 #### b) Config File Hash Baseline
 ```bash

@@ -555,6 +555,26 @@ sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/
 sudo systemctl restart sshd
 ```
 
+### 12.6 — 檔案權限最佳實踐
+
+需要讀寫的配置檔案用 `600`，純讀取的憑證/金鑰用 `400`：
+
+```bash
+# 配置檔案（需要讀寫） → 600
+chmod 600 ~/.zeroclaw/config.toml
+
+# SSH 私鑰（唯讀） → 400
+chmod 400 ~/.ssh/id_rsa
+chmod 400 ~/your-ec2-key.pem
+```
+
+> **常見權限錯誤排查**：
+> - 啟動時 `Permission denied` → 確認檔案 owner 與 daemon 執行使用者一致：`ls -la ~/.zeroclaw/config.toml`
+> - SSH 拒絕金鑰（`Permissions are too open`）→ 私鑰必須是 `400` 或 `600`，**不能是 644 或 755**
+> - 用 `sudo` 執行但檔案 owner 是一般使用者 → 需要 `sudo chown root:root` 或改為不使用 sudo
+>
+> 完整的逐檔案權限參考表請見 [安全實踐指南](security-practice-guide/docs/OpenClaw極簡安全實踐指南.md#a-許可權收窄限制訪問範圍)。
+
 ---
 
 ## 13. 監控與維護

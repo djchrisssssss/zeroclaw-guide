@@ -84,7 +84,7 @@ PERM_PAIRED=$(stat -c "%a" "$OC/devices/paired.json" 2>/dev/null || echo "MISSIN
 PERM_SSHD=$(stat -c "%a" /etc/ssh/sshd_config 2>/dev/null || echo "N/A")
 PERM_AUTH_KEYS=$(stat -c "%a" "$HOME/.ssh/authorized_keys" 2>/dev/null || echo "N/A")
 echo "Permissions: openclaw=$PERM_OC, paired=$PERM_PAIRED, sshd_config=$PERM_SSHD, authorized_keys=$PERM_AUTH_KEYS" >> "$REPORT_FILE"
-if [[ "$HASH_RES" == *"OK"* ]] && [[ "$PERM_OC" == "600" ]]; then
+if [[ "$HASH_RES" == *"OK"* ]] && [[ "$PERM_OC" == "600" || "$PERM_OC" == "400" ]]; then
   SUMMARY+="7. 配置基線: ✅ 雜湊校驗透過且許可權合規\n"
 else
   append_warn "7. 配置基線: ⚠️ 基線缺失/校驗異常或許可權不合規"

@@ -555,6 +555,26 @@ sudo sed -i 's/#PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/
 sudo systemctl restart sshd
 ```
 
+### 12.6 — File Permission Best Practices
+
+Use `600` for config files that need read/write and `400` for read-only credentials:
+
+```bash
+# Config files (read/write) → 600
+chmod 600 ~/.zeroclaw/config.toml
+
+# SSH private keys (read-only) → 400
+chmod 400 ~/.ssh/id_rsa
+chmod 400 ~/your-ec2-key.pem
+```
+
+> **Troubleshooting Permission Errors**:
+> - `Permission denied` on startup → Check file owner matches the daemon user: `ls -la ~/.zeroclaw/config.toml`
+> - SSH rejects key (`Permissions are too open`) → Private keys must be `400` or `600`, never `644` or `755`
+> - Running with `sudo` but files owned by regular user → Either `sudo chown root:root` or stop using sudo
+>
+> See the [Security Practice Guide](security-practice-guide/docs/OpenClaw-Security-Practice-Guide.md#a-permission-narrowing-restrict-access-scope) for a complete file-by-file permission reference.
+
 ---
 
 ## 13. Monitoring & Maintenance
